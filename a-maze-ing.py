@@ -3,6 +3,11 @@ import typing
 
 
 def parse(file: str) -> dict[str, typing.Any]:
+    """
+    Read, validate and extract the content of the file configuration
+    Ignore comments and verify the mandatory's keys
+    (WIDTH, HEIGHT, ENTRY, EXIT, OUTPUT_FILE, PERFECT) have to be in the txt
+    """
     config: dict[str, typing.Any] = dict()
     keys: list[str] = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
 
