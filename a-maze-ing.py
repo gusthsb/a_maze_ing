@@ -1,4 +1,3 @@
-import mlx # ainda não utilizado
 import sys
 import typing
 
