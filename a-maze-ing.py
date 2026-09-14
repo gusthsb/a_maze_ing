@@ -1,5 +1,44 @@
-import mlx
+import mlx # ainda não utilizado
 import sys
+import typing
+
+
+def parse(file: str) -> dict[str, typing.Any]:
+    config: dict[str, typing.Any] = dict()
+    keys: list[str] = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
+
+    try:
+        with open(file, 'r') as f:
+            for line in f:
+                line = line.strip()
+
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    config[key.strip()] = value.strip()
+                else:
+                    print(f"Error: invalid syntax in the config_file '{line}'")
+                    sys.exit(1)
+
+    except FileNotFoundError:
+        print(f"Error: '{file}' config_file not found")
+        sys.exit(1)
+
+    for key in keys:
+        if key not in config:
+            print(f"Error: mandatory key '{key}' is missing in the '{file}'")
+            sys.exit(1)
+
+    try:
+        config['WIDTH'] = int(config['WIDTH'])
+        config['HEIGHT'] = int(config['HEIGHT'])
+        config['PERFECT'] = config['PERFECT'].lower() == 'true'
+    except ValueError:
+        print("Error: WIDTH and HEIGHT has too be int")
+        sys.exit(1)
+
+    return config
 
 
 def main() -> None:
@@ -8,15 +47,12 @@ def main() -> None:
         sys.exit(1)
 
     config_file = sys.argv[1]
+    config_data = parse(config_file)
 
-    try:
-        with open(config_file, "r") as file:
-            print("Sucess to open the file")
-            content = file.read()
-            print(content)
-    except FileNotFoundError:
-        print(f"Error: '{config_file}' not found")
-        sys.exit(1)
+    # Teste para leitura/parsing do txt
+    print("=== Configurações Carregadas ===")
+    for key, value in config_data.items():
+        print(f"{key}: {value} (Tipo: {type(value).__name__})")
 
 
 if __name__ == "__main__":
