@@ -21,4 +21,3 @@ class MazeGenerator:
         Access the maze structure
         """
         pass
-    

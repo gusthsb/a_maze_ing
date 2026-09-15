@@ -12,14 +12,14 @@ def parse(file: str) -> dict[str, typing.Any]:
     keys: list[str] = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
 
     try:
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             for line in f:
                 line = line.strip()
 
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
-                if '=' in line:
-                    key, value = line.split('=', 1)
+                if "=" in line:
+                    key, value = line.split("=", 1)
                     config[key.strip()] = value.strip()
                 else:
                     print(f"Error: invalid syntax in the config_file '{line}'")
@@ -35,9 +35,9 @@ def parse(file: str) -> dict[str, typing.Any]:
             sys.exit(1)
 
     try:
-        config['WIDTH'] = int(config['WIDTH'])
-        config['HEIGHT'] = int(config['HEIGHT'])
-        config['PERFECT'] = config['PERFECT'].lower() == 'true'
+        config["WIDTH"] = int(config["WIDTH"])
+        config["HEIGHT"] = int(config["HEIGHT"])
+        config["PERFECT"] = config["PERFECT"].lower() == "true"
     except ValueError:
         print("Error: WIDTH and HEIGHT has too be int")
         sys.exit(1)
