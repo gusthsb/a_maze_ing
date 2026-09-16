@@ -17,7 +17,7 @@ class MazeGenerator:
             seed: typing.Optional[int] = None
     ) -> None:
         self.grid: list[list[int]] = [
-            [15 for _ in range(width) for _ in range(height)]
+            [15 for _ in range(width)] for _ in range(height)
         ]
         self.directions = [
             (0, -1, 1, 4),
@@ -93,8 +93,8 @@ class MazeGenerator:
             self._braid_maze()
 
 
-    def get_structure(self) -> None:
+    def get_structure(self) -> list[list[int]]:
         """
-        Access the maze structure
+        Return the maze structure
         """
-        pass
+        return self.grid
