@@ -1,6 +1,16 @@
 import sys
 import mlx
 import typing
+from maze_generator import MazeGenerator
+
+
+def draw_horizontal_line(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
+                         x: int, y: int, length: int, color: int) -> None:
+    """
+    Draw a horizontal line.
+    """
+    for i in range(length + 1):
+        engine.mlx_pixel_put(mlx_ptr, win_ptr, x + i, y, color)
 
 
 def close_window(*args: typing.Any) -> int:
