@@ -13,6 +13,14 @@ def draw_horizontal_line(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typin
         engine.mlx_pixel_put(mlx_ptr, win_ptr, x + i, y, color)
 
 
+def draw_vertical_line(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
+                       x: int, y: int, length: int, color: int) -> None:
+    """
+    Draw a vertical line.
+    """
+    for i in range(length + 1):
+        engine.mlx_pixel_put(mlx_ptr, win_ptr, x, y + i, color)
+
 def close_window(*args: typing.Any) -> int:
     """
     Work with key_press to close the application window
