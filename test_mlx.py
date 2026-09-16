@@ -82,6 +82,16 @@ def key_press(keycode: int, parameter: typing.Any = None) -> int:
     return 0
 
 
+def expose_window(parameter: typing.Any = None) -> int:
+    """
+    Function called when the window is fully mapped to the screen
+    """
+    if parameter:
+        engine, mlx_ptr, win_ptr, maze = parameter
+        render_maze(engine, mlx_ptr, win_ptr, maze)
+    return 0
+
+
 def main() -> None:
     print("Generating Maze...")
     maze = MazeGenerator(width=30, height=20, entry=(0,0), exit_pos=(29,19), perfect=False)
@@ -99,15 +109,16 @@ def main() -> None:
     title = "A-maze-ing -- Live Preview"
     win_ptr = engine.mlx_new_window(mlx_ptr, width, height, title)
     
-    # Render the maze on the screen!
-    render_maze(engine, mlx_ptr, win_ptr, maze)
+    print("Waiting for window to expose")
 
-    print("Maze rendered! Press ESC or click 'x' to close.")
     mlx_data = [engine, mlx_ptr]
+    expose_data = [engine, mlx_ptr, win_ptr, maze]
     
     engine.mlx_hook(win_ptr, 2, 1, key_press, mlx_data)
     engine.mlx_hook(win_ptr, 17, 0, close_window, mlx_data)
     engine.mlx_hook(win_ptr, 33, 0, close_window, mlx_data)
+
+    engine.mlx_expose_hook(win_ptr, expose_window, expose_data)
     
     engine.mlx_loop(mlx_ptr)
     print("Engine stopped safely. Goodbye!")
