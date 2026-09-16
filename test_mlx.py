@@ -4,33 +4,67 @@ import typing
 from maze_generator import MazeGenerator
 
 
-def draw_horizontal_line(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
-                         x: int, y: int, length: int, color: int) -> None:
-    """
-    Draw a horizontal line using pixels.
-    """
+def draw_horizontal_line(
+    engine: typing.Any,
+    mlx_ptr: typing.Any,
+    win_ptr: typing.Any,
+    x: int,
+    y: int,
+    length: int,
+    color: int,
+) -> None:
+    """Draws a horizontal line using pixels."""
     for i in range(length + 1):
         engine.mlx_pixel_put(mlx_ptr, win_ptr, x + i, y, color)
 
 
-def draw_vertical_line(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
-                       x: int, y: int, length: int, color: int) -> None:
-    """
-    Draw a vertical line using pixels.
-    """
+def draw_vertical_line(
+    engine: typing.Any,
+    mlx_ptr: typing.Any,
+    win_ptr: typing.Any,
+    x: int,
+    y: int,
+    length: int,
+    color: int,
+) -> None:
+    """Draws a vertical line using pixels."""
     for i in range(length + 1):
         engine.mlx_pixel_put(mlx_ptr, win_ptr, x, y + i, color)
 
 
-def render_maze(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
-                maze: MazeGenerator, size: int = 20, offset_x: int = 50,
-                offset_y: int = 50) -> None:
+def fill_square(
+    engine: typing.Any,
+    mlx_ptr: typing.Any,
+    win_ptr: typing.Any,
+    x: int,
+    y: int,
+    size: int,
+    color: int,
+) -> None:
+    """Fills the inside of a cell with a specific color."""
+    for i in range(2, size - 1):
+        for j in range(2, size - 1):
+            engine.mlx_pixel_put(mlx_ptr, win_ptr, x + i, y + j, color)
+
+
+def render_maze(
+    engine: typing.Any,
+    mlx_ptr: typing.Any,
+    win_ptr: typing.Any,
+    maze: MazeGenerator,
+    size: int = 20,
+    offset_x: int = 50,
+    offset_y: int = 50,
+) -> None:
     """
-    Render the maze grid
+    Renders the maze grid.
     Bits (1 == North, 2 == East, 4 == South, 8 == West) to draw walls.
     """
     grid = maze.get_structure()
-    wall_color = 0x00FF00
+
+    wall_color = 0xFF00FF00  # Verde Opaco
+    entry_color = 0xFFFF00FF  # Rosa Opaco
+    exit_color = 0xFFFF0000  # Vermelho Opaco
 
     for y in range(maze.height):
         for x in range(maze.width):
@@ -41,50 +75,46 @@ def render_maze(engine: typing.Any, mlx_ptr: typing.Any, win_ptr: typing.Any,
 
             if cell_value & 1:
                 draw_horizontal_line(engine, mlx_ptr, win_ptr, px, py, size, wall_color)
-
             if cell_value & 2:
-                draw_vertical_line(engine, mlx_ptr, win_ptr, px + size, py, size, wall_color)
-                
+                draw_vertical_line(
+                    engine, mlx_ptr, win_ptr, px + size, py, size, wall_color
+                )
             if cell_value & 4:
-                draw_horizontal_line(engine, mlx_ptr, win_ptr, px, py + size, size, wall_color)
-                
+                draw_horizontal_line(
+                    engine, mlx_ptr, win_ptr, px, py + size, size, wall_color
+                )
             if cell_value & 8:
                 draw_vertical_line(engine, mlx_ptr, win_ptr, px, py, size, wall_color)
 
+    entry_x, entry_y = maze.entry
+    fill_square(
+        engine,
+        mlx_ptr,
+        win_ptr,
+        offset_x + (entry_x * size),
+        offset_y + (entry_y * size),
+        size,
+        entry_color,
+    )
 
-def close_window(*args: typing.Any) -> int:
+    exit_x, exit_y = maze.exit_pos
+    fill_square(
+        engine,
+        mlx_ptr,
+        win_ptr,
+        offset_x + (exit_x * size),
+        offset_y + (exit_y * size),
+        size,
+        exit_color,
+    )
+
+    engine.mlx_do_sync(mlx_ptr)
+
+
+def loop_render(parameter: typing.Any = None) -> int:
     """
-    Work with key_press to close the application window
-    """
-    print("(X button) Closing...")
-
-    for arg in args:
-        if isinstance(arg, list) and len(arg) == 2:
-            engine, mlx_ptr = arg
-            engine.mlx_loop_exit(mlx_ptr)
-            return 0
-
-    sys.exit(0)
-
-
-def key_press(keycode: int, parameter: typing.Any = None) -> int:
-    """
-    Function to handle keyboard events
-    """
-    if parameter:
-        engine, mlx_ptr = parameter
-        if keycode == 65307:
-            print("(ESC) Closing...")
-            engine.mlx_loop_exit(mlx_ptr)
-        else:
-            print(f"{keycode} pressed...")
-
-    return 0
-
-
-def expose_window(parameter: typing.Any = None) -> int:
-    """
-    Function called when the window is fully mapped to the screen
+    Loop Hook: Runs continuously in the background 60 times per second.
+    This defeats any WSL window manager black screens!
     """
     if parameter:
         engine, mlx_ptr, win_ptr, maze = parameter
@@ -92,9 +122,33 @@ def expose_window(parameter: typing.Any = None) -> int:
     return 0
 
 
+def close_window(*args: typing.Any) -> int:
+    """Closes the application window safely."""
+    print("(X button) Closing...")
+    for arg in args:
+        if isinstance(arg, list) and len(arg) == 2:
+            engine, mlx_ptr = arg
+            engine.mlx_loop_exit(mlx_ptr)
+            return 0
+    sys.exit(0)
+
+
+def key_press(keycode: int, parameter: typing.Any = None) -> int:
+    """Handles keyboard events."""
+    if parameter:
+        engine, mlx_ptr = parameter
+        if keycode == 65307:
+            print("(ESC) Closing...")
+            engine.mlx_loop_exit(mlx_ptr)
+    return 0
+
+
 def main() -> None:
     print("Generating Maze...")
-    maze = MazeGenerator(width=30, height=20, entry=(0,0), exit_pos=(29,19), perfect=False)
+    maze = MazeGenerator(
+        width=30, height=20, entry=(0, 0), exit_pos=(29, 19), perfect=False
+    )
+
     maze.generate()
 
     print("Starting MLX Engine...")
@@ -103,23 +157,23 @@ def main() -> None:
     if not mlx_ptr:
         print("Error: Failed to initialize mlx")
         sys.exit(1)
-        
+
     width = 800
     height = 600
     title = "A-maze-ing -- Live Preview"
     win_ptr = engine.mlx_new_window(mlx_ptr, width, height, title)
-    
-    print("Waiting for window to expose")
+
+    print("Rendering forced via loop hook. Check the window!")
 
     mlx_data = [engine, mlx_ptr]
     expose_data = [engine, mlx_ptr, win_ptr, maze]
-    
+
     engine.mlx_hook(win_ptr, 2, 1, key_press, mlx_data)
     engine.mlx_hook(win_ptr, 17, 0, close_window, mlx_data)
     engine.mlx_hook(win_ptr, 33, 0, close_window, mlx_data)
 
-    engine.mlx_expose_hook(win_ptr, expose_window, expose_data)
-    
+    engine.mlx_loop_hook(mlx_ptr, loop_render, expose_data)
+
     engine.mlx_loop(mlx_ptr)
     print("Engine stopped safely. Goodbye!")
 

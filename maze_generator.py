@@ -8,23 +8,16 @@ class MazeGenerator:
     """
 
     def __init__(
-            self,
-            width: int,
-            height: int,
-            entry: tuple[int, int],
-            exit_pos: tuple[int, int],
-            perfect: bool,
-            seed: typing.Optional[int] = None
+        self,
+        width: int,
+        height: int,
+        entry: tuple[int, int],
+        exit_pos: tuple[int, int],
+        perfect: bool,
+        seed: typing.Optional[int] = None,
     ) -> None:
-        self.grid: list[list[int]] = [
-            [15 for _ in range(width)] for _ in range(height)
-        ]
-        self.directions = [
-            (0, -1, 1, 4),
-            (1, 0, 2, 8),
-            (0, 1, 4, 1),
-            (-1, 0, 8, 2)
-        ]
+        self.grid: list[list[int]] = [[15 for _ in range(width)] for _ in range(height)]
+        self.directions = [(0, -1, 1, 4), (1, 0, 2, 8), (0, 1, 4, 1), (-1, 0, 8, 2)]
         self.width = width
         self.height = height
         self.entry = entry
@@ -38,7 +31,7 @@ class MazeGenerator:
         """
         for y in range(self.height):
             for x in range(self.width):
-                if bin(self.grid[y][x]).count('1') == 3:
+                if bin(self.grid[y][x]).count("1") == 3:
                     closed = list()
 
                     for dirx, diry, current, neighbor in self.directions:
@@ -48,13 +41,11 @@ class MazeGenerator:
                         if 0 <= next_x < self.width and 0 <= next_y < self.height:
 
                             if self.grid[y][x] & current:
-                                closed.append(
-                                    (next_x, next_y, current, neighbor))
+                                closed.append((next_x, next_y, current, neighbor))
                     if closed:
                         next_x, next_y, current, neighbor = random.choice(closed)
                         self.grid[y][x] &= ~current
                         self.grid[next_y][next_x] &= ~neighbor
-            
 
     def generate(self) -> None:
         """
@@ -72,9 +63,11 @@ class MazeGenerator:
                 next_x = current_x + dirx
                 next_y = current_y + diry
 
-                if (0 <= next_x < self.width and
-                    0 <= next_y < self.height and
-                    self.grid[next_y][next_x] == 15):
+                if (
+                    0 <= next_x < self.width
+                    and 0 <= next_y < self.height
+                    and self.grid[next_y][next_x] == 15
+                ):
 
                     unvisited.append((next_x, next_y, current_wall, neighbor))
 
@@ -91,7 +84,6 @@ class MazeGenerator:
 
         if not self.perfect:
             self._braid_maze()
-
 
     def get_structure(self) -> list[list[int]]:
         """
