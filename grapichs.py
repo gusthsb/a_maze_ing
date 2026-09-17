@@ -163,8 +163,6 @@ def main() -> None:
     title = "A-maze-ing -- Live Preview"
     win_ptr = engine.mlx_new_window(mlx_ptr, width, height, title)
 
-    print("Rendering forced via loop hook. Check the window!")
-
     mlx_data = [engine, mlx_ptr]
     expose_data = [engine, mlx_ptr, win_ptr, maze]
 
@@ -175,7 +173,7 @@ def main() -> None:
     engine.mlx_loop_hook(mlx_ptr, loop_render, expose_data)
 
     engine.mlx_loop(mlx_ptr)
-    print("Engine stopped safely. Goodbye!")
+    print("Engine stopped safely.")
 
 
 if __name__ == "__main__":
