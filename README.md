@@ -15,3 +15,6 @@ bitwise para rastrear as paredes -- entre 0 - 3, sendo (Norte, Leste, Sul, Oeste
 
 DOCUMENTAÇÃO DA ENGINE: https://harm-smits.github.io/42docs/libs/minilibx/hooks.html
 OUTRA FONTE (JÁ COM PORT EM PYTHON): https://github.com/noradefitero/42_MiniLibX_Python_Manual
+SOBRE O RECURSIVE BACKTRACKING: https://aryanab.medium.com/maze-generation-recursive-backtracking-5981bc5cc766
+https://github.com/jostbr/pymaze
+
