@@ -1,5 +1,5 @@
 install:
-		pip3 install mlx-2.2-py3-none-any.whl
+		pip install pytest
 
 run:
 		python3 a-maze-ing.py config.txt
