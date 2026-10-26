@@ -1,97 +1,98 @@
-"""Terminal Unicode box-drawing visual renderer for A-Maze-ing.
+"""Terminal TrueColor Half-Block pixel renderer for A-Maze-ing.
 
-This module renders a MazeGrid using Unicode Heavy Box-Drawing characters
-(┏, ━, ┳, ┓, ┃, ┣, ╋, ┫, ┗, ┻, ┛) so walls are explicitly drawn as thin
-connected lines and corridors remain wide and visually unmistakable.
+This module renders a MazeGrid into a high-resolution 2D RGB pixel buffer
+displayed via Unicode upper-half-block characters ('▀'). Each cell has a
+3x3 pixel interior and 1-pixel drawn walls, ensuring zero gaps between
+entry/exit blocks and walls, beveled '42' tiles, and a continuous center
+line for the shortest path.
 """
 
 from dataclasses import dataclass
+from typing import TypeAlias
+
 from mazegen.algorithms.bfs_solver import BFSSolver
 from mazegen.domain.interfaces import GridProtocol
 from mazegen.domain.types import Coordinate, Direction
 
-ANSI_RESET: str = "\033[0m"
+RGB: TypeAlias = tuple[int, int, int]
 
-# 4-bit junction lookup: bit 0=UP, bit 1=RIGHT, bit 2=DOWN, bit 3=LEFT
-BOX_JUNCTIONS: dict[int, str] = {
-    0: " ",
-    1: "╹",
-    2: "╺",
-    3: "┗",
-    4: "╻",
-    5: "┃",
-    6: "┏",
-    7: "┣",
-    8: "╸",
-    9: "┛",
-    10: "━",
-    11: "┻",
-    12: "┓",
-    13: "┫",
-    14: "┳",
-    15: "╋",
-}
+ANSI_RESET: str = "\033[0m"
+HALF_BLOCK_TOP: str = "▀"
+CELL_PIXELS: int = 3
+STRIDE: int = CELL_PIXELS + 1  # 4 pixels per cell (1px wall + 3px interior)
 
 
 @dataclass(frozen=True)
 class ColorTheme:
-    """ANSI color palette for terminal maze rendering.
+    """24-bit RGB color palette for high-resolution terminal rendering.
 
     Attributes:
         name: Human-readable theme name.
-        wall: ANSI escape code for drawn maze walls.
-        pattern_42: ANSI escape code for the '42' closed cells.
-        path: ANSI escape code for the shortest solution path.
-        entry: ANSI escape code for the entry cell.
-        exit: ANSI escape code for the exit cell.
+        floor: RGB color for open corridor background.
+        wall: RGB color for 1px drawn maze walls.
+        pattern_outer: RGB color for outer bevel of '42' pattern cells.
+        pattern_inner: RGB color for center dot of '42' pattern cells.
+        path: RGB color for the continuous shortest-path line.
+        entry: RGB color for the entry cell block (flush with walls).
+        exit: RGB color for the exit cell block (flush with walls).
     """
 
     name: str
-    wall: str
-    pattern_42: str
-    path: str
-    entry: str
-    exit: str
+    floor: RGB
+    wall: RGB
+    pattern_outer: RGB
+    pattern_inner: RGB
+    path: RGB
+    entry: RGB
+    exit: RGB
 
 
 THEMES: tuple[ColorTheme, ...] = (
     ColorTheme(
-        name="Amber Gold & Cyan",
-        wall="\033[33m",        # Amber / Gold walls (like PDF screenshot)
-        pattern_42="\033[97m",  # Bright White '42' blocks
-        path="\033[96m",        # Bright Cyan path dots
-        entry="\033[92m",       # Bright Green entry
-        exit="\033[91m",        # Bright Red exit
+        name="Golden Amber (PDF Style)",
+        floor=(18, 16, 22),
+        wall=(235, 170, 60),
+        pattern_outer=(245, 225, 185),
+        pattern_inner=(180, 140, 80),
+        path=(255, 215, 90),
+        entry=(185, 85, 235),
+        exit=(235, 75, 115),
     ),
     ColorTheme(
-        name="Classic White & Yellow",
-        wall="\033[97m",        # Bright White walls
-        pattern_42="\033[90m",  # Cool Grey '42' blocks
-        path="\033[93m",        # Bright Yellow path dots
-        entry="\033[92m",       # Bright Green entry
-        exit="\033[91m",        # Bright Red exit
+        name="Classic Crisp White & Cyan",
+        floor=(14, 17, 24),
+        wall=(225, 232, 240),
+        pattern_outer=(165, 175, 190),
+        pattern_inner=(95, 105, 120),
+        path=(0, 225, 255),
+        entry=(45, 225, 115),
+        exit=(255, 65, 85),
     ),
     ColorTheme(
-        name="Matrix Neon Green",
-        wall="\033[32m",        # Green walls
-        pattern_42="\033[92m",  # Neon Green '42' blocks
-        path="\033[96m",        # Cyan path dots
-        entry="\033[93m",       # Yellow entry
-        exit="\033[91m",        # Bright Red exit
+        name="Cyberpunk Neon",
+        floor=(16, 12, 28),
+        wall=(175, 85, 255),
+        pattern_outer=(0, 230, 250),
+        pattern_inner=(15, 120, 160),
+        path=(255, 230, 45),
+        entry=(50, 245, 140),
+        exit=(255, 55, 115),
     ),
     ColorTheme(
-        name="Cyberpunk Magenta",
-        wall="\033[95m",        # Magenta walls
-        pattern_42="\033[96m",  # Cyan '42' blocks
-        path="\033[93m",        # Yellow path dots
-        entry="\033[92m",       # Green entry
-        exit="\033[91m",        # Red exit
+        name="Matrix Emerald",
+        floor=(10, 20, 14),
+        wall=(45, 205, 95),
+        pattern_outer=(140, 245, 165),
+        pattern_inner=(30, 125, 60),
+        path=(80, 220, 255),
+        entry=(245, 230, 60),
+        exit=(255, 70, 70),
     ),
 )
 
 
 class TerminalRenderer:
-    """Render a MazeGrid using connected Unicode box-drawing walls."""
+    """Render a MazeGrid using a 2x-vertical-resolution RGB pixel canvas."""
 
     def __init__(self, theme_index: int = 0) -> None:
         """Initialize the renderer with a starting color theme index.
@@ -121,7 +122,7 @@ class TerminalRenderer:
         solution: list[Direction] | None = None,
         show_path: bool = False,
     ) -> str:
-        """Build the multi-line Unicode box-drawing string for the maze.
+        """Build the multi-line TrueColor half-block string for the maze.
 
         Args:
             grid: The maze grid to render.
@@ -129,209 +130,170 @@ class TerminalRenderer:
             show_path: Whether to overlay the shortest path on the maze.
 
         Returns:
-            str: Multi-line string ready to print to stdout.
+            str: Multi-line ANSI TrueColor string ready for stdout.
         """
         theme: ColorTheme = self.current_theme
-        path_cells, h_doors, v_doors = self._compute_path_sets(
-            grid, solution, show_path
-        )
+        pw: int = grid.width * STRIDE + 1
+        ph: int = grid.height * STRIDE + 1
 
-        lines: list[str] = []
-        for gy in range(grid.height + 1):
-            lines.append(
-                self._render_wall_row(grid, gy, h_doors, theme)
-            )
-            if gy < grid.height:
-                lines.append(
-                    self._render_cell_row(
-                        grid, gy, path_cells, v_doors, theme
-                    )
-                )
-        return "\n".join(lines)
+        canvas: list[list[RGB]] = [
+            [theme.floor for _ in range(pw)] for _ in range(ph)
+        ]
 
-    def _render_wall_row(
+        self._draw_cells_and_walls(canvas, grid, theme)
+
+        if show_path and solution is not None:
+            self._draw_solution_line(canvas, grid, solution, theme)
+            # Re-paint entry and exit on top so they stay solid flush blocks
+            self._fill_cell_block(canvas, grid.entry, theme.entry)
+            self._fill_cell_block(canvas, grid.exit, theme.exit)
+
+        return self._encode_half_blocks(canvas, pw, ph)
+
+    def _draw_cells_and_walls(
         self,
+        canvas: list[list[RGB]],
         grid: GridProtocol,
-        gy: int,
-        h_doors: set[Coordinate],
         theme: ColorTheme,
-    ) -> str:
-        """Render a horizontal wall and junction row at grid y-boundary gy.
+    ) -> None:
+        """Paint cell interiors, '42' beveled tiles, and 1px walls.
 
         Args:
-            grid: The maze grid.
-            gy: Horizontal grid line index (0..height).
-            h_doors: Set of open horizontal doorways traversed by the path.
+            canvas: 2D RGB pixel buffer to mutate.
+            grid: The maze grid to inspect.
             theme: Active color theme.
-
-        Returns:
-            str: Rendered horizontal line string.
         """
-        parts: list[str] = []
-        w: int = grid.width
-        for gx in range(w + 1):
-            mask: int = self._junction_mask(grid, gx, gy)
-            junction_ch: str = BOX_JUNCTIONS[mask]
-            parts.append(f"{theme.wall}{junction_ch}{ANSI_RESET}")
+        for y in range(grid.height):
+            py0: int = y * STRIDE + 1
+            for x in range(grid.width):
+                px0: int = x * STRIDE + 1
+                coord: Coordinate = (x, y)
 
-            if gx < w:
-                if self._has_h_wall(grid, gx, gy):
-                    parts.append(f"{theme.wall}━━━{ANSI_RESET}")
-                elif (gx, gy) in h_doors:
-                    parts.append(f"{theme.path} • {ANSI_RESET}")
+                if coord == grid.entry:
+                    self._fill_cell_block(canvas, coord, theme.entry)
+                elif coord == grid.exit:
+                    self._fill_cell_block(canvas, coord, theme.exit)
+                elif grid.is_masked(coord):
+                    self._fill_42_tile(canvas, px0, py0, theme)
+
+                if grid.has_wall(coord, Direction.NORTH):
+                    for dx in range(STRIDE + 1):
+                        canvas[py0 - 1][px0 - 1 + dx] = theme.wall
+                if grid.has_wall(coord, Direction.SOUTH):
+                    for dx in range(STRIDE + 1):
+                        canvas[py0 + CELL_PIXELS][px0 - 1 + dx] = theme.wall
+                if grid.has_wall(coord, Direction.WEST):
+                    for dy in range(STRIDE + 1):
+                        canvas[py0 - 1 + dy][px0 - 1] = theme.wall
+                if grid.has_wall(coord, Direction.EAST):
+                    for dy in range(STRIDE + 1):
+                        canvas[py0 - 1 + dy][px0 + CELL_PIXELS] = theme.wall
+
+    @staticmethod
+    def _fill_cell_block(
+        canvas: list[list[RGB]],
+        coord: Coordinate,
+        color: RGB,
+    ) -> None:
+        """Fill the 3x3 interior of coord flush against surrounding walls.
+
+        Args:
+            canvas: 2D RGB pixel buffer.
+            coord: Cell (x, y) coordinate.
+            color: RGB color to fill.
+        """
+        px0: int = coord[0] * STRIDE + 1
+        py0: int = coord[1] * STRIDE + 1
+        for dy in range(CELL_PIXELS):
+            for dx in range(CELL_PIXELS):
+                canvas[py0 + dy][px0 + dx] = color
+
+    @staticmethod
+    def _fill_42_tile(
+        canvas: list[list[RGB]],
+        px0: int,
+        py0: int,
+        theme: ColorTheme,
+    ) -> None:
+        """Paint a beveled 3x3 '42' pattern cell (outer ring + center dot).
+
+        Args:
+            canvas: 2D RGB pixel buffer.
+            px0: Top-left interior pixel x.
+            py0: Top-left interior pixel y.
+            theme: Active color theme.
+        """
+        for dy in range(CELL_PIXELS):
+            for dx in range(CELL_PIXELS):
+                if dx == 1 and dy == 1:
+                    canvas[py0 + dy][px0 + dx] = theme.pattern_inner
                 else:
-                    parts.append("   ")
-        return "".join(parts)
+                    canvas[py0 + dy][px0 + dx] = theme.pattern_outer
 
-    def _render_cell_row(
-        self,
+    @staticmethod
+    def _draw_solution_line(
+        canvas: list[list[RGB]],
         grid: GridProtocol,
-        gy: int,
-        path_cells: set[Coordinate],
-        v_doors: set[Coordinate],
+        solution: list[Direction],
         theme: ColorTheme,
-    ) -> str:
-        """Render a row of cell interiors and vertical walls at row gy.
+    ) -> None:
+        """Draw a continuous 1px line along the center of the shortest path.
 
         Args:
+            canvas: 2D RGB pixel buffer.
             grid: The maze grid.
-            gy: Cell row index (0..height - 1).
-            path_cells: Coordinates visited along the shortest path.
-            v_doors: Set of open vertical doorways traversed by the path.
+            solution: Sequence of Directions from entry to exit.
             theme: Active color theme.
-
-        Returns:
-            str: Rendered cell row string.
         """
-        parts: list[str] = []
-        w: int = grid.width
-        for gx in range(w):
-            if self._has_v_wall(grid, gx, gy):
-                parts.append(f"{theme.wall}┃{ANSI_RESET}")
-            elif (gx, gy) in v_doors:
-                parts.append(f"{theme.path}•{ANSI_RESET}")
-            else:
-                parts.append(" ")
-
-            coord: Coordinate = (gx, gy)
-            if coord == grid.entry:
-                parts.append(f"{theme.entry}███{ANSI_RESET}")
-            elif coord == grid.exit:
-                parts.append(f"{theme.exit}███{ANSI_RESET}")
-            elif grid.is_masked(coord):
-                parts.append(f"{theme.pattern_42}▓▓▓{ANSI_RESET}")
-            elif coord in path_cells:
-                parts.append(f"{theme.path} • {ANSI_RESET}")
-            else:
-                parts.append("   ")
-
-        if self._has_v_wall(grid, w, gy):
-            parts.append(f"{theme.wall}┃{ANSI_RESET}")
-        else:
-            parts.append(" ")
-        return "".join(parts)
-
-    @classmethod
-    def _junction_mask(
-        cls,
-        grid: GridProtocol,
-        gx: int,
-        gy: int,
-    ) -> int:
-        """Compute the 4-bit box-drawing mask at grid vertex (gx, gy).
-
-        Args:
-            grid: The maze grid.
-            gx: Vertex column index (0..width).
-            gy: Vertex row index (0..height).
-
-        Returns:
-            int: Bitmask (1=UP, 2=RIGHT, 4=DOWN, 8=LEFT).
-        """
-        mask: int = 0
-        if cls._has_v_wall(grid, gx, gy - 1):
-            mask |= 1
-        if cls._has_h_wall(grid, gx, gy):
-            mask |= 2
-        if cls._has_v_wall(grid, gx, gy):
-            mask |= 4
-        if cls._has_h_wall(grid, gx - 1, gy):
-            mask |= 8
-        return mask
-
-    @staticmethod
-    def _has_h_wall(grid: GridProtocol, x: int, y: int) -> bool:
-        """Check if the horizontal wall above cell (x, y) is closed.
-
-        Args:
-            grid: The maze grid.
-            x: Column index.
-            y: Boundary row index (0..height).
-
-        Returns:
-            bool: True if the horizontal wall segment is closed.
-        """
-        if not (0 <= x < grid.width):
-            return False
-        if y == 0:
-            return grid.has_wall((x, 0), Direction.NORTH)
-        if y == grid.height:
-            return grid.has_wall((x, grid.height - 1), Direction.SOUTH)
-        return grid.has_wall((x, y), Direction.NORTH)
-
-    @staticmethod
-    def _has_v_wall(grid: GridProtocol, x: int, y: int) -> bool:
-        """Check if the vertical wall to the left of cell (x, y) is closed.
-
-        Args:
-            grid: The maze grid.
-            x: Boundary column index (0..width).
-            y: Row index.
-
-        Returns:
-            bool: True if the vertical wall segment is closed.
-        """
-        if not (0 <= y < grid.height):
-            return False
-        if x == 0:
-            return grid.has_wall((0, y), Direction.WEST)
-        if x == grid.width:
-            return grid.has_wall((grid.width - 1, y), Direction.EAST)
-        return grid.has_wall((x, y), Direction.WEST)
-
-    @staticmethod
-    def _compute_path_sets(
-        grid: GridProtocol,
-        solution: list[Direction] | None,
-        show_path: bool,
-    ) -> tuple[set[Coordinate], set[Coordinate], set[Coordinate]]:
-        """Compute visited cells and open doorways along the solution path.
-
-        Args:
-            grid: The maze grid.
-            solution: Optional list of Directions from entry to exit.
-            show_path: Whether path rendering is enabled.
-
-        Returns:
-            tuple[set[Coordinate], set[Coordinate], set[Coordinate]]:
-                (path_cells, horizontal_doors, vertical_doors).
-        """
-        if not show_path or solution is None:
-            return set(), set(), set()
-
         coords: list[Coordinate] = BFSSolver.trace_coordinates(
             grid.entry, solution
         )
-        path_cells: set[Coordinate] = set(coords)
-        h_doors: set[Coordinate] = set()
-        v_doors: set[Coordinate] = set()
-
         for idx, step in enumerate(solution):
-            cx, cy = coords[idx]
-            nx, ny = coords[idx + 1]
-            if step in (Direction.EAST, Direction.WEST):
-                v_doors.add((max(cx, nx), cy))
-            else:
-                h_doors.add((cx, max(cy, ny)))
+            cx: int = coords[idx][0] * STRIDE + 2
+            cy: int = coords[idx][1] * STRIDE + 2
+            dx, dy = step.delta
+            for offset in range(STRIDE + 1):
+                canvas[cy + dy * offset][cx + dx * offset] = theme.path
 
-        return path_cells, h_doors, v_doors
+    @staticmethod
+    def _encode_half_blocks(
+        canvas: list[list[RGB]],
+        pw: int,
+        ph: int,
+    ) -> str:
+        """Encode pairs of pixel rows into ANSI TrueColor '▀' strings.
+
+        Since terminal character cells have a ~1:2 width-to-height ratio,
+        splitting each character cell vertically into top (foreground '▀')
+        and bottom (background) produces square 1:1 pixels with zero gaps.
+
+        Args:
+            canvas: 2D RGB pixel buffer of height ph and width pw.
+            pw: Pixel buffer width.
+            ph: Pixel buffer height.
+
+        Returns:
+            str: Multi-line ANSI string.
+        """
+        lines: list[str] = []
+
+        for py in range(0, ph, 2):
+            row_parts: list[str] = []
+            for px in range(pw):
+                tr, tg, tb = canvas[py][px]
+                if py + 1 < ph:
+                    br, bg_c, bb = canvas[py + 1][px]
+                    row_parts.append(
+                        f"\033[38;2;{tr};{tg};{tb}m"
+                        f"\033[48;2;{br};{bg_c};{bb}m"
+                        f"{HALF_BLOCK_TOP}"
+                    )
+                else:
+                    row_parts.append(
+                        f"\033[38;2;{tr};{tg};{tb}m"
+                        f"{HALF_BLOCK_TOP}"
+                    )
+            row_parts.append(ANSI_RESET)
+            lines.append("".join(row_parts))
+
+        return "\n".join(lines)
