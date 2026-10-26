@@ -248,4 +248,3 @@ class ConfigParser:
         raise ConfigError(
             f"Invalid boolean for {key}: '{raw}'. Expected True or False."
         )
-

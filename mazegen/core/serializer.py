@@ -88,4 +88,3 @@ class MazeSerializer:
             raise MazeError(
                 f"Failed to write output file '{path}': {exc}"
             ) from exc
-

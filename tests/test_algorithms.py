@@ -34,6 +34,8 @@ class TestAlgorithmsAndGenerator(unittest.TestCase):
                 if not grid.is_masked((x, y))
             )
             self.assertEqual(directed_edges // 2, vertices - 1)
+            self.assertEqual(len(grid.accessible_neighbors(grid.entry)), 1)
+            self.assertEqual(len(grid.accessible_neighbors(grid.exit)), 1)
             self.assertGreater(len(gen.solution), 0)
 
     def test_seed_reproducibility(self) -> None:

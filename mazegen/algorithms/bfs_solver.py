@@ -98,4 +98,3 @@ class BFSSolver:
             y += dy
             coords.append((x, y))
         return coords
-

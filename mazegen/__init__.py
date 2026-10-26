@@ -34,4 +34,3 @@ __all__ = [
     "SolverError",
     "__version__",
 ]
-

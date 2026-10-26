@@ -1,8 +1,8 @@
-"""Terminal ASCII/ANSI visual renderer for A-Maze-ing.
+"""Terminal Unicode box-drawing visual renderer for A-Maze-ing.
 
-This module renders a MazeGrid into a colored Unicode block string suitable
-for terminal display, highlighting walls, the '42' pattern, entry/exit
-points, and the optional shortest path.
+This module renders a MazeGrid using Unicode Heavy Box-Drawing characters
+(┏, ━, ┳, ┓, ┃, ┣, ╋, ┫, ┗, ┻, ┛) so walls are explicitly drawn as thin
+connected lines and corridors remain wide and visually unmistakable.
 """
 
 from dataclasses import dataclass
@@ -11,9 +11,26 @@ from mazegen.domain.interfaces import GridProtocol
 from mazegen.domain.types import Coordinate, Direction
 
 ANSI_RESET: str = "\033[0m"
-BLOCK_SOLID: str = "██"
-BLOCK_PATTERN: str = "▓▓"
-BLOCK_EMPTY: str = "  "
+
+# 4-bit junction lookup: bit 0=UP, bit 1=RIGHT, bit 2=DOWN, bit 3=LEFT
+BOX_JUNCTIONS: dict[int, str] = {
+    0: " ",
+    1: "╹",
+    2: "╺",
+    3: "┗",
+    4: "╻",
+    5: "┃",
+    6: "┏",
+    7: "┣",
+    8: "╸",
+    9: "┛",
+    10: "━",
+    11: "┻",
+    12: "┓",
+    13: "┫",
+    14: "┳",
+    15: "╋",
+}
 
 
 @dataclass(frozen=True)
@@ -22,7 +39,7 @@ class ColorTheme:
 
     Attributes:
         name: Human-readable theme name.
-        wall: ANSI escape code for maze walls.
+        wall: ANSI escape code for drawn maze walls.
         pattern_42: ANSI escape code for the '42' closed cells.
         path: ANSI escape code for the shortest solution path.
         entry: ANSI escape code for the entry cell.
@@ -39,42 +56,42 @@ class ColorTheme:
 
 THEMES: tuple[ColorTheme, ...] = (
     ColorTheme(
-        name="Classic White & Cyan",
-        wall="\033[97m",        # Bright White
-        pattern_42="\033[90m",  # Cool Grey
-        path="\033[96m",        # Bright Cyan
-        entry="\033[92m",       # Bright Green
-        exit="\033[91m",        # Bright Red
+        name="Amber Gold & Cyan",
+        wall="\033[33m",        # Amber / Gold walls (like PDF screenshot)
+        pattern_42="\033[97m",  # Bright White '42' blocks
+        path="\033[96m",        # Bright Cyan path dots
+        entry="\033[92m",       # Bright Green entry
+        exit="\033[91m",        # Bright Red exit
     ),
     ColorTheme(
-        name="Amber Retro",
-        wall="\033[33m",        # Amber / Yellow
-        pattern_42="\033[97m",  # Bright White
-        path="\033[93m",        # Bright Yellow
-        entry="\033[95m",       # Magenta
-        exit="\033[91m",        # Bright Red
+        name="Classic White & Yellow",
+        wall="\033[97m",        # Bright White walls
+        pattern_42="\033[90m",  # Cool Grey '42' blocks
+        path="\033[93m",        # Bright Yellow path dots
+        entry="\033[92m",       # Bright Green entry
+        exit="\033[91m",        # Bright Red exit
     ),
     ColorTheme(
-        name="Matrix Green",
-        wall="\033[32m",        # Green
-        pattern_42="\033[92m",  # Neon Green
-        path="\033[94m",        # Bright Blue
-        entry="\033[96m",       # Cyan
-        exit="\033[91m",        # Bright Red
+        name="Matrix Neon Green",
+        wall="\033[32m",        # Green walls
+        pattern_42="\033[92m",  # Neon Green '42' blocks
+        path="\033[96m",        # Cyan path dots
+        entry="\033[93m",       # Yellow entry
+        exit="\033[91m",        # Bright Red exit
     ),
     ColorTheme(
-        name="Cyberpunk Neon",
-        wall="\033[35m",        # Purple
-        pattern_42="\033[96m",  # Cyan
-        path="\033[93m",        # Yellow
-        entry="\033[92m",       # Green
-        exit="\033[91m",        # Red
+        name="Cyberpunk Magenta",
+        wall="\033[95m",        # Magenta walls
+        pattern_42="\033[96m",  # Cyan '42' blocks
+        path="\033[93m",        # Yellow path dots
+        entry="\033[92m",       # Green entry
+        exit="\033[91m",        # Red exit
     ),
 )
 
 
 class TerminalRenderer:
-    """Render a MazeGrid to the terminal using ANSI colors and blocks."""
+    """Render a MazeGrid using connected Unicode box-drawing walls."""
 
     def __init__(self, theme_index: int = 0) -> None:
         """Initialize the renderer with a starting color theme index.
@@ -104,7 +121,7 @@ class TerminalRenderer:
         solution: list[Direction] | None = None,
         show_path: bool = False,
     ) -> str:
-        """Build the multi-line ANSI string representing the maze.
+        """Build the multi-line Unicode box-drawing string for the maze.
 
         Args:
             grid: The maze grid to render.
@@ -115,124 +132,206 @@ class TerminalRenderer:
             str: Multi-line string ready to print to stdout.
         """
         theme: ColorTheme = self.current_theme
-        canvas_w: int = 2 * grid.width + 1
-        canvas_h: int = 2 * grid.height + 1
+        path_cells, h_doors, v_doors = self._compute_path_sets(
+            grid, solution, show_path
+        )
 
-        wall_tile: str = f"{theme.wall}{BLOCK_SOLID}{ANSI_RESET}"
-        pattern_tile: str = f"{theme.pattern_42}{BLOCK_PATTERN}{ANSI_RESET}"
-        path_tile: str = f"{theme.path}{BLOCK_SOLID}{ANSI_RESET}"
-        entry_tile: str = f"{theme.entry}{BLOCK_SOLID}{ANSI_RESET}"
-        exit_tile: str = f"{theme.exit}{BLOCK_SOLID}{ANSI_RESET}"
-
-        canvas: list[list[str]] = [
-            [BLOCK_EMPTY for _ in range(canvas_w)]
-            for _ in range(canvas_h)
-        ]
-        is_wall_grid: list[list[bool]] = [
-            [False for _ in range(canvas_w)]
-            for _ in range(canvas_h)
-        ]
-
-        # Populate horizontal and vertical wall segments and cell interiors
-        for y in range(grid.height):
-            cy: int = 2 * y + 1
-            for x in range(grid.width):
-                cx: int = 2 * x + 1
-                coord: Coordinate = (x, y)
-
-                if grid.is_masked(coord):
-                    canvas[cy][cx] = pattern_tile
-                elif coord == grid.entry:
-                    canvas[cy][cx] = entry_tile
-                elif coord == grid.exit:
-                    canvas[cy][cx] = exit_tile
-
-                if grid.has_wall(coord, Direction.NORTH):
-                    canvas[cy - 1][cx] = wall_tile
-                    is_wall_grid[cy - 1][cx] = True
-                if grid.has_wall(coord, Direction.SOUTH):
-                    canvas[cy + 1][cx] = wall_tile
-                    is_wall_grid[cy + 1][cx] = True
-                if grid.has_wall(coord, Direction.WEST):
-                    canvas[cy][cx - 1] = wall_tile
-                    is_wall_grid[cy][cx - 1] = True
-                if grid.has_wall(coord, Direction.EAST):
-                    canvas[cy][cx + 1] = wall_tile
-                    is_wall_grid[cy][cx + 1] = True
-
-        # Populate corner/pillar tiles (even y, even x)
-        for py in range(0, canvas_h, 2):
-            for px in range(0, canvas_w, 2):
-                if self._pillar_has_adjacent_wall(
-                    is_wall_grid, px, py, canvas_w, canvas_h
-                ):
-                    canvas[py][px] = wall_tile
-                    is_wall_grid[py][px] = True
-
-        # Overlay shortest path if requested
-        if show_path and solution is not None:
-            self._overlay_path(
-                canvas=canvas,
-                entry=grid.entry,
-                exit_coord=grid.exit,
-                solution=solution,
-                path_tile=path_tile,
+        lines: list[str] = []
+        for gy in range(grid.height + 1):
+            lines.append(
+                self._render_wall_row(grid, gy, h_doors, theme)
             )
+            if gy < grid.height:
+                lines.append(
+                    self._render_cell_row(
+                        grid, gy, path_cells, v_doors, theme
+                    )
+                )
+        return "\n".join(lines)
 
-        return "\n".join("".join(row) for row in canvas)
-
-    @staticmethod
-    def _pillar_has_adjacent_wall(
-        is_wall_grid: list[list[bool]],
-        px: int,
-        py: int,
-        canvas_w: int,
-        canvas_h: int,
-    ) -> bool:
-        """Check if a corner pillar connects to any closed wall segment.
+    def _render_wall_row(
+        self,
+        grid: GridProtocol,
+        gy: int,
+        h_doors: set[Coordinate],
+        theme: ColorTheme,
+    ) -> str:
+        """Render a horizontal wall and junction row at grid y-boundary gy.
 
         Args:
-            is_wall_grid: Boolean matrix marking closed wall segments.
-            px: Pillar x index in canvas coordinates.
-            py: Pillar y index in canvas coordinates.
-            canvas_w: Total canvas width.
-            canvas_h: Total canvas height.
+            grid: The maze grid.
+            gy: Horizontal grid line index (0..height).
+            h_doors: Set of open horizontal doorways traversed by the path.
+            theme: Active color theme.
 
         Returns:
-            bool: True if at least one adjacent wall segment is closed.
+            str: Rendered horizontal line string.
         """
-        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
-            nx, ny = px + dx, py + dy
-            if 0 <= nx < canvas_w and 0 <= ny < canvas_h:
-                if is_wall_grid[ny][nx]:
-                    return True
-        return False
+        parts: list[str] = []
+        w: int = grid.width
+        for gx in range(w + 1):
+            mask: int = self._junction_mask(grid, gx, gy)
+            junction_ch: str = BOX_JUNCTIONS[mask]
+            parts.append(f"{theme.wall}{junction_ch}{ANSI_RESET}")
 
-    @staticmethod
-    def _overlay_path(
-        canvas: list[list[str]],
-        entry: Coordinate,
-        exit_coord: Coordinate,
-        solution: list[Direction],
-        path_tile: str,
-    ) -> None:
-        """Draw the shortest path across cell interiors and open doorways.
+            if gx < w:
+                if self._has_h_wall(grid, gx, gy):
+                    parts.append(f"{theme.wall}━━━{ANSI_RESET}")
+                elif (gx, gy) in h_doors:
+                    parts.append(f"{theme.path} • {ANSI_RESET}")
+                else:
+                    parts.append("   ")
+        return "".join(parts)
+
+    def _render_cell_row(
+        self,
+        grid: GridProtocol,
+        gy: int,
+        path_cells: set[Coordinate],
+        v_doors: set[Coordinate],
+        theme: ColorTheme,
+    ) -> str:
+        """Render a row of cell interiors and vertical walls at row gy.
 
         Args:
-            canvas: 2D character tile buffer to mutate.
-            entry: Entry coordinate.
-            exit_coord: Exit coordinate.
-            solution: Sequence of Directions forming the shortest path.
-            path_tile: Colored tile string for path segments.
+            grid: The maze grid.
+            gy: Cell row index (0..height - 1).
+            path_cells: Coordinates visited along the shortest path.
+            v_doors: Set of open vertical doorways traversed by the path.
+            theme: Active color theme.
+
+        Returns:
+            str: Rendered cell row string.
         """
-        coords: list[Coordinate] = BFSSolver.trace_coordinates(entry, solution)
-        for idx, current in enumerate(coords):
-            cx: int = 2 * current[0] + 1
-            cy: int = 2 * current[1] + 1
-            if current != entry and current != exit_coord:
-                canvas[cy][cx] = path_tile
+        parts: list[str] = []
+        w: int = grid.width
+        for gx in range(w):
+            if self._has_v_wall(grid, gx, gy):
+                parts.append(f"{theme.wall}┃{ANSI_RESET}")
+            elif (gx, gy) in v_doors:
+                parts.append(f"{theme.path}•{ANSI_RESET}")
+            else:
+                parts.append(" ")
 
-            if idx < len(solution):
-                dx, dy = solution[idx].delta
-                canvas[cy + dy][cx + dx] = path_tile
+            coord: Coordinate = (gx, gy)
+            if coord == grid.entry:
+                parts.append(f"{theme.entry}███{ANSI_RESET}")
+            elif coord == grid.exit:
+                parts.append(f"{theme.exit}███{ANSI_RESET}")
+            elif grid.is_masked(coord):
+                parts.append(f"{theme.pattern_42}▓▓▓{ANSI_RESET}")
+            elif coord in path_cells:
+                parts.append(f"{theme.path} • {ANSI_RESET}")
+            else:
+                parts.append("   ")
 
+        if self._has_v_wall(grid, w, gy):
+            parts.append(f"{theme.wall}┃{ANSI_RESET}")
+        else:
+            parts.append(" ")
+        return "".join(parts)
+
+    @classmethod
+    def _junction_mask(
+        cls,
+        grid: GridProtocol,
+        gx: int,
+        gy: int,
+    ) -> int:
+        """Compute the 4-bit box-drawing mask at grid vertex (gx, gy).
+
+        Args:
+            grid: The maze grid.
+            gx: Vertex column index (0..width).
+            gy: Vertex row index (0..height).
+
+        Returns:
+            int: Bitmask (1=UP, 2=RIGHT, 4=DOWN, 8=LEFT).
+        """
+        mask: int = 0
+        if cls._has_v_wall(grid, gx, gy - 1):
+            mask |= 1
+        if cls._has_h_wall(grid, gx, gy):
+            mask |= 2
+        if cls._has_v_wall(grid, gx, gy):
+            mask |= 4
+        if cls._has_h_wall(grid, gx - 1, gy):
+            mask |= 8
+        return mask
+
+    @staticmethod
+    def _has_h_wall(grid: GridProtocol, x: int, y: int) -> bool:
+        """Check if the horizontal wall above cell (x, y) is closed.
+
+        Args:
+            grid: The maze grid.
+            x: Column index.
+            y: Boundary row index (0..height).
+
+        Returns:
+            bool: True if the horizontal wall segment is closed.
+        """
+        if not (0 <= x < grid.width):
+            return False
+        if y == 0:
+            return grid.has_wall((x, 0), Direction.NORTH)
+        if y == grid.height:
+            return grid.has_wall((x, grid.height - 1), Direction.SOUTH)
+        return grid.has_wall((x, y), Direction.NORTH)
+
+    @staticmethod
+    def _has_v_wall(grid: GridProtocol, x: int, y: int) -> bool:
+        """Check if the vertical wall to the left of cell (x, y) is closed.
+
+        Args:
+            grid: The maze grid.
+            x: Boundary column index (0..width).
+            y: Row index.
+
+        Returns:
+            bool: True if the vertical wall segment is closed.
+        """
+        if not (0 <= y < grid.height):
+            return False
+        if x == 0:
+            return grid.has_wall((0, y), Direction.WEST)
+        if x == grid.width:
+            return grid.has_wall((grid.width - 1, y), Direction.EAST)
+        return grid.has_wall((x, y), Direction.WEST)
+
+    @staticmethod
+    def _compute_path_sets(
+        grid: GridProtocol,
+        solution: list[Direction] | None,
+        show_path: bool,
+    ) -> tuple[set[Coordinate], set[Coordinate], set[Coordinate]]:
+        """Compute visited cells and open doorways along the solution path.
+
+        Args:
+            grid: The maze grid.
+            solution: Optional list of Directions from entry to exit.
+            show_path: Whether path rendering is enabled.
+
+        Returns:
+            tuple[set[Coordinate], set[Coordinate], set[Coordinate]]:
+                (path_cells, horizontal_doors, vertical_doors).
+        """
+        if not show_path or solution is None:
+            return set(), set(), set()
+
+        coords: list[Coordinate] = BFSSolver.trace_coordinates(
+            grid.entry, solution
+        )
+        path_cells: set[Coordinate] = set(coords)
+        h_doors: set[Coordinate] = set()
+        v_doors: set[Coordinate] = set()
+
+        for idx, step in enumerate(solution):
+            cx, cy = coords[idx]
+            nx, ny = coords[idx + 1]
+            if step in (Direction.EAST, Direction.WEST):
+                v_doors.add((max(cx, nx), cy))
+            else:
+                h_doors.add((cx, max(cy, ny)))
+
+        return path_cells, h_doors, v_doors
