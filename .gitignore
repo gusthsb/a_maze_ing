@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Type checker & linter caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Build artifacts (note: root mazegen-* package is tracked per Chapter VI)
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Generated runtime output
+maze.txt
+output_maze.txt
+
