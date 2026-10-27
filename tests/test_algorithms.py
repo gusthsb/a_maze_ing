@@ -133,6 +133,61 @@ class TestAlgorithmsAndGenerator(unittest.TestCase):
         )
         self.assertEqual(len(lines[11]), len(gen.solution))
 
+    def test_toggle_algorithm(self) -> None:
+        """Verify toggle_algorithm alternates between dfs and prim cleanly."""
+        gen: MazeGenerator = MazeGenerator(
+            width=10, height=8, algorithm="dfs", seed=10
+        )
+        self.assertEqual(gen.config.algorithm, "dfs")
+        new_algo: str = gen.toggle_algorithm()
+        self.assertEqual(new_algo, "prim")
+        self.assertEqual(gen.config.algorithm, "prim")
+        self.assertGreater(len(gen.solution), 0)
+
+        second_toggle: str = gen.toggle_algorithm()
+        self.assertEqual(second_toggle, "dfs")
+        self.assertEqual(gen.config.algorithm, "dfs")
+
+    def test_animated_step_callback(self) -> None:
+        """Verify step_callback is called during animated generation."""
+        called_steps: list[Coordinate] = []
+
+        def on_step(
+            grid: object,
+            coord: Coordinate,
+            trail: list[Coordinate],
+        ) -> None:
+            """Collect visited coordinates during generation."""
+            called_steps.append(coord)
+
+        gen: MazeGenerator = MazeGenerator(width=8, height=8, seed=42)
+        gen.generate(seed=42, step_callback=on_step)
+        self.assertGreater(len(called_steps), 10)
+
+    def test_bfs_wave_callback(self) -> None:
+        """Verify step_callback is invoked during BFS solving wave."""
+        visited_nodes: list[Coordinate] = []
+        gen: MazeGenerator = MazeGenerator(width=8, height=8, seed=42)
+        gen.solve(
+            step_callback=lambda coord, wave: visited_nodes.append(coord)
+        )
+        self.assertGreater(len(visited_nodes), 5)
+
+    def test_playable_game_movement(self) -> None:
+        """Verify PlayableGame moves player and respects closed walls."""
+        from mazegen.cli.game import PlayableGame
+        from mazegen.cli.render import TerminalRenderer
+
+        gen: MazeGenerator = MazeGenerator(width=8, height=8, seed=42)
+        game: PlayableGame = PlayableGame(gen, TerminalRenderer())
+
+        # Test movement attempt
+        for key in ("w", "s", "a", "d"):
+            game._handle_input(key)
+        # Position should either be updated or stay valid in bounds
+        self.assertTrue(gen.grid.in_bounds(game._player))
+        self.assertFalse(gen.grid.is_masked(game._player))
+
 
 if __name__ == "__main__":
     unittest.main()

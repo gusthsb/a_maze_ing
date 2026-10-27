@@ -6,18 +6,23 @@ route from entry to exit.
 """
 
 from collections import deque
-from mazegen.domain.interfaces import GridProtocol
+from mazegen.domain.interfaces import GridProtocol, SolveStepCallback
 from mazegen.domain.types import Coordinate, Direction, SolverError
 
 
 class BFSSolver:
     """Find the shortest valid path in a maze using Breadth-First Search."""
 
-    def solve(self, grid: GridProtocol) -> list[Direction]:
+    def solve(
+        self,
+        grid: GridProtocol,
+        step_callback: SolveStepCallback | None = None,
+    ) -> list[Direction]:
         """Compute the shortest path from grid.entry to grid.exit.
 
         Args:
             grid: The generated maze grid to solve.
+            step_callback: Optional callback invoked during wavefront search.
 
         Returns:
             list[Direction]: Ordered sequence of cardinal steps from entry
@@ -46,6 +51,8 @@ class BFSSolver:
                     visited.add(neighbor)
                     parent_map[neighbor] = (current, direction)
                     queue.append(neighbor)
+                    if step_callback is not None:
+                        step_callback(neighbor, set(visited))
 
         raise SolverError(
             f"No valid path found from entry {start} to exit {goal}."

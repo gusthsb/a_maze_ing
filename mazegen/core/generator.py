@@ -15,7 +15,12 @@ from mazegen.algorithms.prim import PrimGenerator
 from mazegen.core.config_parser import ConfigParser
 from mazegen.core.grid import MazeGrid
 from mazegen.core.serializer import MazeSerializer
-from mazegen.domain.interfaces import GenerationStrategy, SolverStrategy
+from mazegen.domain.interfaces import (
+    GenerationStrategy,
+    SolveStepCallback,
+    SolverStrategy,
+    StepCallback,
+)
 from mazegen.domain.types import (
     ConfigError,
     Coordinate,
@@ -151,12 +156,55 @@ class MazeGenerator:
         """Return ordered (x, y) coordinates visited on the shortest path."""
         return BFSSolver.trace_coordinates(self.grid.entry, self.solution)
 
-    def generate(self, seed: int | None = None) -> MazeGrid:
+    def solve(
+        self,
+        step_callback: SolveStepCallback | None = None,
+    ) -> list[Direction]:
+        """Solve the maze, optionally invoking a callback during BFS search.
+
+        Args:
+            step_callback: Optional callback invoked during wavefront search.
+
+        Returns:
+            list[Direction]: Shortest path from entry to exit.
+        """
+        solution: list[Direction] = self._solver.solve(
+            self.grid, step_callback=step_callback
+        )
+        self._solution = solution
+        return list(solution)
+
+    def toggle_algorithm(self) -> str:
+        """Toggle between DFS Backtracker and Prim generator algorithms.
+
+        Returns:
+            str: Newly activated algorithm name ('dfs' or 'prim').
+        """
+        new_algo: str = "prim" if self._config.algorithm == "dfs" else "dfs"
+        self._config = MazeConfig(
+            width=self._config.width,
+            height=self._config.height,
+            entry=self._config.entry,
+            exit=self._config.exit,
+            output_file=self._config.output_file,
+            perfect=self._config.perfect,
+            seed=self._config.seed,
+            algorithm=new_algo,
+        )
+        self.generate()
+        return new_algo
+
+    def generate(
+        self,
+        seed: int | None = None,
+        step_callback: StepCallback | None = None,
+    ) -> MazeGrid:
         """Generate a new maze and compute its shortest path solution.
 
         Args:
             seed: Optional override seed. If None, uses the configured seed
                 (or system entropy if no seed was configured).
+            step_callback: Optional animation callback invoked at each step.
 
         Returns:
             MazeGrid: The newly generated maze grid.
@@ -175,11 +223,11 @@ class MazeGenerator:
         primary_strategy: GenerationStrategy = self._select_strategy(
             self._config.algorithm
         )
-        primary_strategy.generate(grid, rng)
+        primary_strategy.generate(grid, rng, step_callback=step_callback)
 
         if not self._config.perfect:
             braider: GenerationStrategy = BraidedPacModifier()
-            braider.generate(grid, rng)
+            braider.generate(grid, rng, step_callback=step_callback)
 
         self._grid = grid
         self._solution = self._solver.solve(grid)

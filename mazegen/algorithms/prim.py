@@ -2,23 +2,29 @@
 
 This module implements an iterative frontier-based Prim's algorithm to build
 a minimum spanning tree (perfect maze) over all non-masked grid cells while
-keeping entry and exit as clean degree-1 endpoints whenever topology permits.
+keeping entry and exit as clean degree-1 endpoints and supporting animation.
 """
 
 from random import Random
-from mazegen.domain.interfaces import GridProtocol
+from mazegen.domain.interfaces import GridProtocol, StepCallback
 from mazegen.domain.types import Coordinate, Direction, GenerationError
 
 
 class PrimGenerator:
     """Generate a perfect maze using Randomized Prim's algorithm."""
 
-    def generate(self, grid: GridProtocol, rng: Random) -> None:
+    def generate(
+        self,
+        grid: GridProtocol,
+        rng: Random,
+        step_callback: StepCallback | None = None,
+    ) -> None:
         """Carve a spanning tree across all non-masked grid cells.
 
         Args:
             grid: The maze grid to carve passages into.
             rng: Seeded random number generator for reproducibility.
+            step_callback: Optional callback invoked after each carving step.
 
         Raises:
             GenerationError: If the grid is disconnected by masked cells.
@@ -44,6 +50,8 @@ class PrimGenerator:
         first_dir, first_cell = rng.choice(start_neighbors)
         grid.remove_wall(start, first_dir)
         visited.add(first_cell)
+        if step_callback is not None:
+            step_callback(grid, first_cell, [start, first_cell])
 
         if first_cell != goal:
             self._expand_frontier(
@@ -52,6 +60,7 @@ class PrimGenerator:
                 seed_cell=first_cell,
                 visited=visited,
                 avoid={goal},
+                step_callback=step_callback,
             )
 
         # Fallback if start was an articulation point
@@ -61,6 +70,7 @@ class PrimGenerator:
             seed_cell=start,
             visited=visited,
             avoid={goal},
+            step_callback=step_callback,
         )
 
         # Connect goal (exit) via a single passage to the visited tree
@@ -75,6 +85,8 @@ class PrimGenerator:
             exit_dir, _ = rng.choice(visited_exit_neighbors)
             grid.remove_wall(goal, exit_dir)
             visited.add(goal)
+            if step_callback is not None:
+                step_callback(grid, goal, [goal])
 
         # Fallback if goal was an articulation point
         self._expand_frontier(
@@ -83,6 +95,7 @@ class PrimGenerator:
             seed_cell=goal,
             visited=visited,
             avoid=set(),
+            step_callback=step_callback,
         )
 
         expected_count: int = (
@@ -101,6 +114,7 @@ class PrimGenerator:
         seed_cell: Coordinate,
         visited: set[Coordinate],
         avoid: set[Coordinate],
+        step_callback: StepCallback | None = None,
     ) -> None:
         """Run Randomized Prim's expansion from seed_cell avoiding avoid.
 
@@ -110,6 +124,7 @@ class PrimGenerator:
             seed_cell: Already-visited cell whose edges seed the frontier.
             visited: Mutable set of visited coordinates.
             avoid: Coordinates to defer visiting during this pass.
+            step_callback: Optional animation step callback.
         """
         frontier: list[tuple[Coordinate, Direction, Coordinate]] = [
             (seed_cell, direction, neighbor)
@@ -127,6 +142,8 @@ class PrimGenerator:
 
             grid.remove_wall(source, direction)
             visited.add(target)
+            if step_callback is not None:
+                step_callback(grid, target, [source, target])
 
             for next_dir, next_neighbor in grid.neighbors(target):
                 if next_neighbor not in visited and next_neighbor not in avoid:

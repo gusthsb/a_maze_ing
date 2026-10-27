@@ -3,18 +3,23 @@
 This module implements an explicit stack-based DFS algorithm to generate a
 spanning-tree (perfect) maze over all non-masked cells without risking
 Python's RecursionError on large grids, while keeping entry and exit as
-clean degree-1 endpoints whenever topology permits.
+clean degree-1 endpoints and supporting step-by-step animation callbacks.
 """
 
 from random import Random
-from mazegen.domain.interfaces import GridProtocol
+from mazegen.domain.interfaces import GridProtocol, StepCallback
 from mazegen.domain.types import Coordinate, Direction, GenerationError
 
 
 class DFSBacktracker:
     """Generate a perfect maze using an iterative DFS backtracker."""
 
-    def generate(self, grid: GridProtocol, rng: Random) -> None:
+    def generate(
+        self,
+        grid: GridProtocol,
+        rng: Random,
+        step_callback: StepCallback | None = None,
+    ) -> None:
         """Carve a spanning tree across all non-masked grid cells.
 
         Holds the exit cell out of the main traversal so the exit is
@@ -25,6 +30,7 @@ class DFSBacktracker:
         Args:
             grid: The maze grid to carve passages into.
             rng: Seeded random number generator for reproducibility.
+            step_callback: Optional callback invoked after each carving step.
 
         Raises:
             GenerationError: If the grid is disconnected by masked cells.
@@ -50,6 +56,8 @@ class DFSBacktracker:
         first_dir, first_cell = rng.choice(start_neighbors)
         grid.remove_wall(start, first_dir)
         visited.add(first_cell)
+        if step_callback is not None:
+            step_callback(grid, first_cell, [start, first_cell])
 
         if first_cell != goal:
             self._carve_from(
@@ -58,6 +66,7 @@ class DFSBacktracker:
                 roots=[first_cell],
                 visited=visited,
                 avoid={goal},
+                step_callback=step_callback,
             )
 
         # Fallback if start was an articulation point
@@ -67,6 +76,7 @@ class DFSBacktracker:
             roots=[start],
             visited=visited,
             avoid={goal},
+            step_callback=step_callback,
         )
 
         # Connect goal (exit) via a single passage to the visited tree
@@ -81,6 +91,8 @@ class DFSBacktracker:
             exit_dir, _ = rng.choice(visited_exit_neighbors)
             grid.remove_wall(goal, exit_dir)
             visited.add(goal)
+            if step_callback is not None:
+                step_callback(grid, goal, [goal])
 
         # Fallback if goal was an articulation point isolating a pocket
         self._carve_from(
@@ -89,6 +101,7 @@ class DFSBacktracker:
             roots=[goal],
             visited=visited,
             avoid=set(),
+            step_callback=step_callback,
         )
 
         expected_count: int = (
@@ -107,6 +120,7 @@ class DFSBacktracker:
         roots: list[Coordinate],
         visited: set[Coordinate],
         avoid: set[Coordinate],
+        step_callback: StepCallback | None = None,
     ) -> None:
         """Run iterative stack-based DFS from roots avoiding specified cells.
 
@@ -116,6 +130,7 @@ class DFSBacktracker:
             roots: Initial stack of visited coordinates.
             visited: Mutable set of already visited coordinates.
             avoid: Coordinates to defer visiting during this pass.
+            step_callback: Optional animation step callback.
         """
         stack: list[Coordinate] = list(roots)
         while stack:
@@ -130,5 +145,9 @@ class DFSBacktracker:
                 grid.remove_wall(current, direction)
                 visited.add(chosen)
                 stack.append(chosen)
+                if step_callback is not None:
+                    step_callback(grid, chosen, list(stack))
             else:
                 stack.pop()
+                if step_callback is not None and stack:
+                    step_callback(grid, stack[-1], list(stack))

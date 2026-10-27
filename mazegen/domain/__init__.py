@@ -3,7 +3,9 @@
 from mazegen.domain.interfaces import (
     GenerationStrategy,
     GridProtocol,
+    SolveStepCallback,
     SolverStrategy,
+    StepCallback,
 )
 from mazegen.domain.types import (
     ConfigError,
@@ -24,6 +26,8 @@ __all__ = [
     "GridProtocol",
     "MazeConfig",
     "MazeError",
+    "SolveStepCallback",
     "SolverError",
     "SolverStrategy",
+    "StepCallback",
 ]

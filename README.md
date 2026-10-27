@@ -98,6 +98,23 @@ ALGORITHM=dfs
 
 ---
 
+## Visual Representation & Interactive Menu
+
+The terminal interface uses a 2D TrueColor half-block (`▀`) canvas providing
+2x vertical resolution and zero gaps between elements.
+
+Interactive menu options:
+1. **Re-generate a new maze**: Generates a new random maze with fresh entropy.
+2. **Show / Hide the shortest path**: Toggles the continuous BFS solution line.
+3. **Rotate the wall colours**: Cycles through 4 TrueColor 24-bit themes.
+4. **Toggle algorithm**: Switches dynamically between DFS Backtracker and Prim.
+5. **Animate maze generation**: Real-time snake trail and backtracking animation.
+6. **Animate solution path**: BFS wavefront propagation and path lighting.
+7. **Play maze**: Interactive navigation with WASD and final route trace.
+8. **Quit**: Cleanly exits the program.
+
+---
+
 ## Reusable Module (`mazegen`) Documentation
 
 The entire generation and solving engine is packaged as a standalone distribution (`mazegen-1.0.0-py3-none-any.whl` and `mazegen-1.0.0.tar.gz`) at the root of the repository.

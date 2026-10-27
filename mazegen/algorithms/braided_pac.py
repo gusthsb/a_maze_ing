@@ -6,19 +6,25 @@ dead-ends to create loops, and preventing forbidden 3x3 open areas.
 """
 
 from random import Random
-from mazegen.domain.interfaces import GridProtocol
+from mazegen.domain.interfaces import GridProtocol, StepCallback
 from mazegen.domain.types import Coordinate, Direction
 
 
 class BraidedPacModifier:
     """Transform a spanning-tree maze into a braided Pac-Man board."""
 
-    def generate(self, grid: GridProtocol, rng: Random) -> None:
+    def generate(
+        self,
+        grid: GridProtocol,
+        rng: Random,
+        step_callback: StepCallback | None = None,
+    ) -> None:
         """Eliminate dead-ends and ensure multiple loops without 3x3 rooms.
 
         Args:
             grid: A connected maze grid to braid in-place.
             rng: Seeded random number generator for reproducibility.
+            step_callback: Optional animation step callback.
         """
         self._open_corners_and_center(grid, rng)
         self._eliminate_dead_ends(grid, rng)

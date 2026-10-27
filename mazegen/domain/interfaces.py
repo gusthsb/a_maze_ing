@@ -5,10 +5,16 @@ generation algorithms, and pathfinding solvers to ensure loose coupling and
 strict static typing without circular imports.
 """
 
+from collections.abc import Callable
 from random import Random
-from typing import Protocol
+from typing import Protocol, TypeAlias
 
 from mazegen.domain.types import Coordinate, Direction
+
+StepCallback: TypeAlias = Callable[
+    ["GridProtocol", Coordinate, list[Coordinate]], None
+]
+SolveStepCallback: TypeAlias = Callable[[Coordinate, set[Coordinate]], None]
 
 
 class GridProtocol(Protocol):
@@ -93,12 +99,18 @@ class GridProtocol(Protocol):
 class GenerationStrategy(Protocol):
     """Interface for maze generation and topology modification algorithms."""
 
-    def generate(self, grid: GridProtocol, rng: Random) -> None:
+    def generate(
+        self,
+        grid: GridProtocol,
+        rng: Random,
+        step_callback: StepCallback | None = None,
+    ) -> None:
         """Mutate the provided grid in-place to construct the maze topology.
 
         Args:
             grid: The maze grid instance to carve passages into.
             rng: Seeded random number generator for reproducibility.
+            step_callback: Optional callback invoked after each carving step.
         """
         ...
 
@@ -106,11 +118,16 @@ class GenerationStrategy(Protocol):
 class SolverStrategy(Protocol):
     """Interface for maze pathfinding algorithms."""
 
-    def solve(self, grid: GridProtocol) -> list[Direction]:
+    def solve(
+        self,
+        grid: GridProtocol,
+        step_callback: SolveStepCallback | None = None,
+    ) -> list[Direction]:
         """Compute the shortest path from grid.entry to grid.exit.
 
         Args:
             grid: The generated maze grid to solve.
+            step_callback: Optional callback invoked during wavefront search.
 
         Returns:
             list[Direction]: Ordered sequence of steps from entry to exit.

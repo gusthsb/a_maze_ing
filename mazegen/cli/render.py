@@ -4,7 +4,7 @@ This module renders a MazeGrid into a high-resolution 2D RGB pixel buffer
 displayed via Unicode upper-half-block characters ('▀'). Each cell has a
 3x3 pixel interior and 1-pixel drawn walls, ensuring zero gaps between
 entry/exit blocks and walls, beveled '42' tiles, and a continuous center
-line for the shortest path.
+line for the solution path.
 """
 
 from dataclasses import dataclass
@@ -49,44 +49,44 @@ class ColorTheme:
 
 THEMES: tuple[ColorTheme, ...] = (
     ColorTheme(
-        name="Golden Amber (PDF Style)",
-        floor=(18, 16, 22),
-        wall=(235, 170, 60),
-        pattern_outer=(245, 225, 185),
-        pattern_inner=(180, 140, 80),
-        path=(255, 215, 90),
-        entry=(185, 85, 235),
-        exit=(235, 75, 115),
-    ),
-    ColorTheme(
         name="Classic Crisp White & Cyan",
         floor=(14, 17, 24),
         wall=(225, 232, 240),
-        pattern_outer=(165, 175, 190),
-        pattern_inner=(95, 105, 120),
-        path=(0, 225, 255),
+        pattern_outer=(150, 162, 180),
+        pattern_inner=(80, 90, 110),
+        path=(0, 215, 255),
         entry=(45, 225, 115),
         exit=(255, 65, 85),
     ),
     ColorTheme(
-        name="Cyberpunk Neon",
+        name="Ocean Cobalt & Gold",
+        floor=(10, 15, 28),
+        wall=(65, 140, 245),
+        pattern_outer=(135, 195, 250),
+        pattern_inner=(35, 85, 165),
+        path=(255, 220, 40),
+        entry=(50, 235, 120),
+        exit=(255, 70, 90),
+    ),
+    ColorTheme(
+        name="Cyberpunk Violet & Mint",
         floor=(16, 12, 28),
         wall=(175, 85, 255),
-        pattern_outer=(0, 230, 250),
-        pattern_inner=(15, 120, 160),
-        path=(255, 230, 45),
-        entry=(50, 245, 140),
+        pattern_outer=(215, 165, 255),
+        pattern_inner=(100, 45, 160),
+        path=(0, 245, 200),
+        entry=(55, 245, 115),
         exit=(255, 55, 115),
     ),
     ColorTheme(
-        name="Matrix Emerald",
+        name="Matrix Emerald & Sunset",
         floor=(10, 20, 14),
-        wall=(45, 205, 95),
-        pattern_outer=(140, 245, 165),
-        pattern_inner=(30, 125, 60),
-        path=(80, 220, 255),
-        entry=(245, 230, 60),
-        exit=(255, 70, 70),
+        wall=(45, 200, 105),
+        pattern_outer=(145, 235, 175),
+        pattern_inner=(30, 115, 60),
+        path=(255, 165, 40),
+        entry=(0, 215, 255),
+        exit=(255, 65, 80),
     ),
 )
 
@@ -121,13 +121,21 @@ class TerminalRenderer:
         grid: GridProtocol,
         solution: list[Direction] | None = None,
         show_path: bool = False,
+        player: Coordinate | None = None,
+        active_cell: Coordinate | None = None,
+        trail: list[Coordinate] | None = None,
+        wave: set[Coordinate] | None = None,
     ) -> str:
         """Build the multi-line TrueColor half-block string for the maze.
 
         Args:
             grid: The maze grid to render.
             solution: Optional list of Directions from entry to exit.
-            show_path: Whether to overlay the shortest path on the maze.
+            show_path: Whether to overlay the path line on the maze.
+            player: Optional (x, y) coordinates of the player avatar.
+            active_cell: Optional coordinate highlighted during animation.
+            trail: Optional list of recent stack coordinates forming a trail.
+            wave: Optional set of coordinates in active BFS search wave.
 
         Returns:
             str: Multi-line ANSI TrueColor string ready for stdout.
@@ -140,13 +148,22 @@ class TerminalRenderer:
             [theme.floor for _ in range(pw)] for _ in range(ph)
         ]
 
-        self._draw_cells_and_walls(canvas, grid, theme)
+        self._draw_cells_and_walls(
+            canvas=canvas,
+            grid=grid,
+            theme=theme,
+            player=player,
+            active_cell=active_cell,
+            trail=trail,
+            wave=wave,
+        )
 
         if show_path and solution is not None:
             self._draw_solution_line(canvas, grid, solution, theme)
-            # Re-paint entry and exit on top so they stay solid flush blocks
             self._fill_cell_block(canvas, grid.entry, theme.entry)
             self._fill_cell_block(canvas, grid.exit, theme.exit)
+            if player is not None:
+                self._fill_cell_block(canvas, player, (255, 230, 40))
 
         return self._encode_half_blocks(canvas, pw, ph)
 
@@ -155,6 +172,10 @@ class TerminalRenderer:
         canvas: list[list[RGB]],
         grid: GridProtocol,
         theme: ColorTheme,
+        player: Coordinate | None = None,
+        active_cell: Coordinate | None = None,
+        trail: list[Coordinate] | None = None,
+        wave: set[Coordinate] | None = None,
     ) -> None:
         """Paint cell interiors, '42' beveled tiles, and 1px walls.
 
@@ -162,19 +183,42 @@ class TerminalRenderer:
             canvas: 2D RGB pixel buffer to mutate.
             grid: The maze grid to inspect.
             theme: Active color theme.
+            player: Optional player coordinate.
+            active_cell: Optional animated carver cell coordinate.
+            trail: Optional trailing snake coordinates.
+            wave: Optional BFS search wave coordinates.
         """
+        trail_indices: dict[Coordinate, int] = (
+            {coord: idx for idx, coord in enumerate(trail)}
+            if trail
+            else {}
+        )
+        trail_len: int = len(trail) if trail else 1
+
         for y in range(grid.height):
             py0: int = y * STRIDE + 1
             for x in range(grid.width):
                 px0: int = x * STRIDE + 1
                 coord: Coordinate = (x, y)
 
-                if coord == grid.entry:
+                if coord == player:
+                    self._fill_cell_block(canvas, coord, (255, 230, 40))
+                elif coord == active_cell:
+                    self._fill_cell_block(canvas, coord, (255, 255, 220))
+                elif coord in trail_indices:
+                    ratio: float = (trail_indices[coord] + 1) / trail_len
+                    r: int = int(245 * ratio)
+                    g: int = int(195 * ratio)
+                    b: int = int(45 * ratio)
+                    self._fill_cell_block(canvas, coord, (r, g, b))
+                elif coord == grid.entry:
                     self._fill_cell_block(canvas, coord, theme.entry)
                 elif coord == grid.exit:
                     self._fill_cell_block(canvas, coord, theme.exit)
                 elif grid.is_masked(coord):
                     self._fill_42_tile(canvas, px0, py0, theme)
+                elif wave is not None and coord in wave:
+                    self._fill_cell_block(canvas, coord, (30, 65, 120))
 
                 if grid.has_wall(coord, Direction.NORTH):
                     for dx in range(STRIDE + 1):
@@ -237,7 +281,7 @@ class TerminalRenderer:
         solution: list[Direction],
         theme: ColorTheme,
     ) -> None:
-        """Draw a continuous 1px line along the center of the shortest path.
+        """Draw a continuous 1px line along the center of the solution path.
 
         Args:
             canvas: 2D RGB pixel buffer.
