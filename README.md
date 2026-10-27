@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by gusthsb.*
+*This project has been created as part of the 42 curriculum by gustde-s.*
 
 # A-Maze-ing — This is the way
 
@@ -161,7 +161,7 @@ generator.save("output_maze.txt")
 ## Team and Project Management
 
 - **Team Roles**:
-  - `gusthsb`: Software architecture, domain modeling, iterative generation/braiding algorithms, BFS solver, terminal ANSI renderer, packaging, and unit testing.
+  - `gustde-s`: Software architecture, domain modeling, iterative generation/braiding algorithms, BFS solver, terminal ANSI renderer, packaging, and unit testing.
 - **Planning & Evolution**:
   - *Phase 1*: Domain modeling (`Direction` bitmasks, `MazeConfig`, `Protocol` interfaces).
   - *Phase 2*: Core `MazeGrid` with `"42"` pattern masking, wall coherence, and `3x3` open-area detection.
