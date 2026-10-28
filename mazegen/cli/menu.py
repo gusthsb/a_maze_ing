@@ -81,20 +81,21 @@ class InteractiveMenu:
                 )
 
     def _run_animated_generation(self) -> None:
-        """Animate carving of a maze in-place with a dynamic snake trail."""
+        """Animate carving of a maze in-place with clear algorithmic pacing."""
         next_seed: int = self._sys_rng.randint(0, 2**31 - 1)
         step_counter: list[int] = [0]
-        algo: str = self._generator.config.algorithm.upper()
+        algo: str = self._generator.config.algorithm.lower()
+
+        # Calibrated delay: DFS has ~500 steps (with backtrack), Prim has ~280
+        delay: float = 0.025 if algo == "dfs" else 0.040
 
         def step_animator(
             grid: GridProtocol,
             active: Coordinate,
             trail: list[Coordinate],
         ) -> None:
-            """Render in-place frames displaying the carving snake body."""
+            """Render in-place frames displaying the carving progression."""
             step_counter[0] += 1
-            if step_counter[0] % 2 != 0:
-                return
             frame: str = self._renderer.render(
                 grid=grid,
                 solution=None,
@@ -104,20 +105,31 @@ class InteractiveMenu:
             )
             sys.stdout.write("\033[H\033[2J\033[3J")
             sys.stdout.write(frame + "\n")
-            sys.stdout.write(
-                f"\033[93m⚡ Snake Carver ({algo})... "
-                f"step {step_counter[0]:03d} | depth {len(trail):02d}\033[0m\n"
-            )
+            if algo == "dfs":
+                info: str = (
+                    f"\033[93m⚡ DFS Backtracker (Snake & Backtrack) | "
+                    f"Step: {step_counter[0]:03d} | "
+                    f"Stack Depth: {len(trail):02d}\033[0m"
+                )
+            else:
+                info = (
+                    f"\033[95m⚡ Prim (Radial Frontier Expansion) | "
+                    f"Step: {step_counter[0]:03d} | "
+                    f"Carving at: {active}\033[0m"
+                )
+            sys.stdout.write(info + "\n")
             sys.stdout.flush()
-            time.sleep(0.015)
+            time.sleep(delay)
 
         self._generator.generate(seed=next_seed, step_callback=step_animator)
         self._generator.save()
+        time.sleep(0.5)
 
     def _run_animated_solution(self) -> None:
         """Animate BFS search wave expanding and trace the shortest path."""
         wave_counter: list[int] = [0]
         latest_wave: list[set[Coordinate]] = [set()]
+        wave_delay: float = 0.025
 
         def wave_animator(
             active: Coordinate,
@@ -126,8 +138,6 @@ class InteractiveMenu:
             """Render in-place frames for the expanding BFS wavefront."""
             wave_counter[0] += 1
             latest_wave[0] = visited
-            if wave_counter[0] % 3 != 0:
-                return
             frame: str = self._renderer.render(
                 grid=self._generator.grid,
                 solution=None,
@@ -138,18 +148,20 @@ class InteractiveMenu:
             sys.stdout.write("\033[H\033[2J\033[3J")
             sys.stdout.write(frame + "\n")
             sys.stdout.write(
-                f"\033[96m🌊 BFS search wave expanding... "
-                f"visited {len(visited)} cells\033[0m\n"
+                f"\033[96m🌊 BFS Wavefront Search (FIFO Queue) | "
+                f"Visited: {len(visited):03d} cells | "
+                f"Active: {active}\033[0m\n"
             )
             sys.stdout.flush()
-            time.sleep(0.015)
+            time.sleep(wave_delay)
 
         solution: list[Direction] = self._generator.solve(
             step_callback=wave_animator
         )
-        time.sleep(0.2)
+        time.sleep(0.4)
 
         # Trace the solution line step-by-step from entry to exit
+        path_delay: float = 0.035
         for length in range(1, len(solution) + 1):
             frame = self._renderer.render(
                 grid=self._generator.grid,
@@ -159,15 +171,17 @@ class InteractiveMenu:
             )
             sys.stdout.write("\033[H\033[2J\033[3J")
             sys.stdout.write(frame + "\n")
+            step_dir: str = solution[length - 1].name
             sys.stdout.write(
-                f"\033[92m✨ Tracing shortest path: "
-                f"{length}/{len(solution)} steps\033[0m\n"
+                f"\033[92m✨ Tracing Shortest Path | "
+                f"Step {length:03d}/{len(solution):03d} "
+                f"({step_dir})\033[0m\n"
             )
             sys.stdout.flush()
-            time.sleep(0.02)
+            time.sleep(path_delay)
 
         self._show_path = True
-        time.sleep(0.5)
+        time.sleep(0.8)
 
     def _display_screen(self) -> None:
         """Render the current maze state and print the interactive options."""
