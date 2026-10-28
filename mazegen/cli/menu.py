@@ -1,15 +1,14 @@
 """Interactive terminal menu controller for A-Maze-ing.
 
 This module manages the user interaction loop: regenerating mazes, toggling
-the shortest path, rotating colors, switching algorithms, animating maze
-carving and BFS wavefront solving, and launching the playable mode.
+the shortest path, rotating colors, switching algorithms, and animating maze
+carving and BFS wavefront solving.
 """
 
 from random import SystemRandom
 import sys
 import time
 
-from mazegen.cli.game import PlayableGame
 from mazegen.cli.render import TerminalRenderer
 from mazegen.core.generator import MazeGenerator
 from mazegen.domain.interfaces import GridProtocol
@@ -45,7 +44,7 @@ class InteractiveMenu:
         while True:
             self._display_screen()
             try:
-                choice: str = input("Choice? (1-8): ").strip()
+                choice: str = input("Choice? (1-7): ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\nExiting A-Maze-ing.")
                 break
@@ -66,17 +65,10 @@ class InteractiveMenu:
             elif choice == "6":
                 self._run_animated_solution()
             elif choice == "7":
-                game: PlayableGame = PlayableGame(
-                    generator=self._generator,
-                    renderer=self._renderer,
-                )
-                if game.play():
-                    self._show_path = True
-            elif choice == "8":
                 break
             else:
                 print(
-                    f"Invalid choice '{choice}'. Please enter 1-8.",
+                    f"Invalid choice '{choice}'. Please enter 1-7.",
                     file=sys.stderr,
                 )
 
@@ -207,5 +199,4 @@ class InteractiveMenu:
         print(f"4. Toggle algorithm (current: {algo_name})")
         print("5. Animate maze generation (Snake trail)")
         print("6. Animate solution path (BFS search wave)")
-        print("7. Play maze (WASD controls)")
-        print("8. Quit")
+        print("7. Quit")

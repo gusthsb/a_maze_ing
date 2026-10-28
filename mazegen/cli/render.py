@@ -121,7 +121,6 @@ class TerminalRenderer:
         grid: GridProtocol,
         solution: list[Direction] | None = None,
         show_path: bool = False,
-        player: Coordinate | None = None,
         active_cell: Coordinate | None = None,
         trail: list[Coordinate] | None = None,
         wave: set[Coordinate] | None = None,
@@ -132,7 +131,6 @@ class TerminalRenderer:
             grid: The maze grid to render.
             solution: Optional list of Directions from entry to exit.
             show_path: Whether to overlay the path line on the maze.
-            player: Optional (x, y) coordinates of the player avatar.
             active_cell: Optional coordinate highlighted during animation.
             trail: Optional list of recent stack coordinates forming a trail.
             wave: Optional set of coordinates in active BFS search wave.
@@ -152,7 +150,6 @@ class TerminalRenderer:
             canvas=canvas,
             grid=grid,
             theme=theme,
-            player=player,
             active_cell=active_cell,
             trail=trail,
             wave=wave,
@@ -162,8 +159,6 @@ class TerminalRenderer:
             self._draw_solution_line(canvas, grid, solution, theme)
             self._fill_cell_block(canvas, grid.entry, theme.entry)
             self._fill_cell_block(canvas, grid.exit, theme.exit)
-            if player is not None:
-                self._fill_cell_block(canvas, player, (255, 230, 40))
 
         return self._encode_half_blocks(canvas, pw, ph)
 
@@ -172,7 +167,6 @@ class TerminalRenderer:
         canvas: list[list[RGB]],
         grid: GridProtocol,
         theme: ColorTheme,
-        player: Coordinate | None = None,
         active_cell: Coordinate | None = None,
         trail: list[Coordinate] | None = None,
         wave: set[Coordinate] | None = None,
@@ -183,7 +177,6 @@ class TerminalRenderer:
             canvas: 2D RGB pixel buffer to mutate.
             grid: The maze grid to inspect.
             theme: Active color theme.
-            player: Optional player coordinate.
             active_cell: Optional animated carver cell coordinate.
             trail: Optional trailing snake coordinates.
             wave: Optional BFS search wave coordinates.
@@ -201,9 +194,7 @@ class TerminalRenderer:
                 px0: int = x * STRIDE + 1
                 coord: Coordinate = (x, y)
 
-                if coord == player:
-                    self._fill_cell_block(canvas, coord, (255, 230, 40))
-                elif coord == active_cell:
+                if coord == active_cell:
                     self._fill_cell_block(canvas, coord, (255, 255, 220))
                 elif coord in trail_indices:
                     ratio: float = (trail_indices[coord] + 1) / trail_len

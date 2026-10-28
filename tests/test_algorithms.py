@@ -173,21 +173,6 @@ class TestAlgorithmsAndGenerator(unittest.TestCase):
         )
         self.assertGreater(len(visited_nodes), 5)
 
-    def test_playable_game_movement(self) -> None:
-        """Verify PlayableGame moves player and respects closed walls."""
-        from mazegen.cli.game import PlayableGame
-        from mazegen.cli.render import TerminalRenderer
-
-        gen: MazeGenerator = MazeGenerator(width=8, height=8, seed=42)
-        game: PlayableGame = PlayableGame(gen, TerminalRenderer())
-
-        # Test movement attempt
-        for key in ("w", "s", "a", "d"):
-            game._handle_input(key)
-        # Position should either be updated or stay valid in bounds
-        self.assertTrue(gen.grid.in_bounds(game._player))
-        self.assertFalse(gen.grid.is_masked(game._player))
-
 
 if __name__ == "__main__":
     unittest.main()

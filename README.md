@@ -110,8 +110,7 @@ Interactive menu options:
 4. **Toggle algorithm**: Switches dynamically between DFS Backtracker and Prim.
 5. **Animate maze generation**: Real-time snake trail and backtracking animation.
 6. **Animate solution path**: BFS wavefront propagation and path lighting.
-7. **Play maze**: Interactive navigation with WASD and final route trace.
-8. **Quit**: Cleanly exits the program.
+7. **Quit**: Cleanly exits the program.
 
 ---
 
