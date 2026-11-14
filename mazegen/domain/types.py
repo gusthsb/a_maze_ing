@@ -25,11 +25,11 @@ class Direction(IntFlag):
     """
 
     NONE = 0
-    NORTH = 1 << 0  # 1 (0b0001)
-    EAST = 1 << 1   # 2 (0b0010)
-    SOUTH = 1 << 2  # 4 (0b0100)
-    WEST = 1 << 3   # 8 (0b1000)
-    ALL = NORTH | EAST | SOUTH | WEST  # 15 (0b1111 / 0xF)
+    NORTH = 1 << 0
+    EAST = 1 << 1
+    SOUTH = 1 << 2
+    WEST = 1 << 3
+    ALL = NORTH | EAST | SOUTH | WEST
 
     @property
     def opposite(self) -> "Direction":
