@@ -18,9 +18,7 @@ PATTERN_42_HEIGHT: int = 5
 MIN_WIDTH_FOR_42: int = 9
 MIN_HEIGHT_FOR_42: int = 7
 
-# Relative (dx, dy) offsets forming the 7x5 "42" pattern of closed cells.
 PATTERN_42_OFFSETS: tuple[Coordinate, ...] = (
-    # Digit '4' (columns 0..2, rows 0..4)
     (0, 0),
     (0, 1),
     (0, 2),
@@ -28,7 +26,6 @@ PATTERN_42_OFFSETS: tuple[Coordinate, ...] = (
     (2, 2),
     (2, 3),
     (2, 4),
-    # Digit '2' (columns 4..6, rows 0..4)
     (4, 0),
     (5, 0),
     (6, 0),
