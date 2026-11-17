@@ -163,7 +163,7 @@ class InteractiveMenu:
             )
             sys.stdout.write("\033[H\033[2J\033[3J")
             sys.stdout.write(frame + "\n")
-            step_dir: str = solution[length - 1].name
+            step_dir: str = solution[length - 1].char
             sys.stdout.write(
                 f"\033[92m✨ Tracing Shortest Path | "
                 f"Step {length:03d}/{len(solution):03d} "
