@@ -19,7 +19,7 @@ RGB: TypeAlias = tuple[int, int, int]
 ANSI_RESET: str = "\033[0m"
 HALF_BLOCK_TOP: str = "▀"
 CELL_PIXELS: int = 3
-STRIDE: int = CELL_PIXELS + 1  # 4 pixels per cell (1px wall + 3px interior)
+STRIDE: int = CELL_PIXELS + 1
 
 
 @dataclass(frozen=True)
