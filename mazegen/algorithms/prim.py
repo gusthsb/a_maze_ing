@@ -63,7 +63,6 @@ class PrimGenerator:
                 step_callback=step_callback,
             )
 
-        # Fallback if start was an articulation point
         self._expand_frontier(
             grid=grid,
             rng=rng,
@@ -73,7 +72,6 @@ class PrimGenerator:
             step_callback=step_callback,
         )
 
-        # Connect goal (exit) via a single passage to the visited tree
         if goal not in visited:
             visited_exit_neighbors: list[tuple[Direction, Coordinate]] = [
                 (d, n) for d, n in grid.neighbors(goal) if n in visited
@@ -88,7 +86,6 @@ class PrimGenerator:
             if step_callback is not None:
                 step_callback(grid, goal, [goal])
 
-        # Fallback if goal was an articulation point
         self._expand_frontier(
             grid=grid,
             rng=rng,
