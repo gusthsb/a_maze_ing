@@ -30,7 +30,7 @@ from mazegen.domain.types import (
 
 
 class MazeGenerator:
-    """High-level reusable maze generator and solver.
+    """Reusable maze generator and solver.
 
     Example:
         >>> from mazegen import MazeGenerator
