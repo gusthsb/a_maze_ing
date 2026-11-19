@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by gustde-s.*
+*This project has been created as part of the 42 curriculum by gustde-s, mamatos-.*
 
 # A-Maze-ing — This is the way
 
@@ -160,12 +160,12 @@ generator.save("output_maze.txt")
 ## Team and Project Management
 
 - **Team Roles**:
-  - `gustde-s`: Software architecture, domain modeling, iterative generation/braiding algorithms, BFS solver, terminal ANSI renderer, packaging, and unit testing.
+  - `gustde-s`: Software architecture, domain modeling (`Direction` bitmasks, `Protocol` interfaces), core `MazeGrid` (`"42"` pattern masking, wall coherence, `3x3` detection), configuration parser, hexadecimal serializer, and package configuration.
+  - `mamatos-`: Iterative maze generation algorithms (`DFSBacktracker`, `PrimGenerator`), Pac-Man braiding modifier (`BraidedPacModifier`), `BFSSolver` shortest-path search, TrueColor terminal renderer, interactive CLI menu, and unit testing.
 - **Planning & Evolution**:
-  - *Phase 1*: Domain modeling (`Direction` bitmasks, `MazeConfig`, `Protocol` interfaces).
-  - *Phase 2*: Core `MazeGrid` with `"42"` pattern masking, wall coherence, and `3x3` open-area detection.
-  - *Phase 3*: Iterative `DFSBacktracker`, `PrimGenerator`, `BraidedPacModifier`, and `BFSSolver`.
-  - *Phase 4*: Terminal visual renderer, interactive CLI loop, packaging (`pyproject.toml`), and unit tests.
+  - *Phase 1*: Domain modeling (`Direction` bitmasks, `MazeConfig`, `Protocol` interfaces), configuration parsing, and core `MazeGrid` with `"42"` pattern masking, wall coherence, and `3x3` open-area detection.
+  - *Phase 2*: Iterative generation algorithms (`DFSBacktracker`, `PrimGenerator`), non-perfect braiding (`BraidedPacModifier`), `BFSSolver`, and hexadecimal serialization.
+  - *Phase 3*: Terminal TrueColor half-block renderer, interactive CLI menu with live animations, standalone packaging (`mazegen`), and unit tests.
 - **What Worked Well & Possible Improvements**:
   - Separating `domain`, `core`, `algorithms`, and `cli` via `typing.Protocol` kept static typing (`mypy --strict`) clean and prevented circular imports.
   - Future improvements could include an optional graphical renderer using MiniLibX alongside the terminal renderer.
@@ -189,4 +189,3 @@ AI assistance was used as a pair-programming mentor during development for:
 - Verifying `flake8` formatting constraints (79-character line limits and PEP 257 docstrings).
 - Designing edge-case unit tests in `tests/` (validating `"42"` pattern boundaries, `3x3` room prevention, and spanning-tree invariants).
 All generated code and algorithms were reviewed, tested, and validated against the project specification.
-
